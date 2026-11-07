@@ -1,0 +1,26 @@
+# Build outputs, local game references and analysis files
+/build/
+/dist/
+[Bb]in/
+[Oo]bj/
+[Ff]lotsam_[Dd]ata/
+[Mm]anaged/
+*.exe
+*.dll
+*.pdb
+*.obj
+*.lib
+*.exp
+*.zip
+
+# IDE, local settings and logs
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.log
+.env
+.env.*
+Thumbs.db
+Desktop.ini
