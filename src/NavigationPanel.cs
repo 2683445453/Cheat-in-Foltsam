@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using UnityEngine;
@@ -12,34 +13,35 @@ namespace FlotsamTrainer
 {
     public sealed partial class TrainerPanel
     {
-        private static readonly AccessTools.FieldRef<WorldMap, bool> MapTransition =
-            AccessTools.FieldRefAccess<WorldMap, bool>("_isChangingState");
-        private static readonly AccessTools.FieldRef<WorldMap, float> DefaultFogRange =
-            AccessTools.FieldRefAccess<WorldMap, float>("_defaultFOWRange");
-        private static readonly AccessTools.FieldRef<UniversalAdditionalCameraData, int> CameraRendererIndex =
-            AccessTools.FieldRefAccess<UniversalAdditionalCameraData, int>("m_RendererIndex");
-        private static readonly AccessTools.FieldRef<WorldMap, WorldMapTownheartPhycis2D> MapPhysics =
-            AccessTools.FieldRefAccess<WorldMap, WorldMapTownheartPhycis2D>("_townheartPhysics");
-        private static readonly AccessTools.FieldRef<WorldMapTownheartPhycis2D, Rigidbody2D> TownheartBody =
-            AccessTools.FieldRefAccess<WorldMapTownheartPhycis2D, Rigidbody2D>("_rigidbody");
-        private static readonly AccessTools.FieldRef<WorldMapTownheartPhycis2D, Vector2> PreviousPhysicsPosition =
-            AccessTools.FieldRefAccess<WorldMapTownheartPhycis2D, Vector2>("_position");
+        private static readonly FieldInfo MapTransition =
+            AccessTools.Field(typeof(WorldMap), "_isChangingState");
+        private static readonly FieldInfo DefaultFogRange =
+            AccessTools.Field(typeof(WorldMap), "_defaultFOWRange");
+        private static readonly FieldInfo CameraRendererIndex =
+            AccessTools.Field(typeof(UniversalAdditionalCameraData), "m_RendererIndex");
+        private static readonly FieldInfo MapPhysics =
+            AccessTools.Field(typeof(WorldMap), "_townheartPhysics");
+        private static readonly FieldInfo TownheartBody =
+            AccessTools.Field(typeof(WorldMapTownheartPhycis2D), "_rigidbody");
+        private static readonly FieldInfo PreviousPhysicsPosition =
+            AccessTools.Field(typeof(WorldMapTownheartPhycis2D), "_position");
         private static readonly Action<WorldMapTownheart, Vector3, Quaternion> SetTownheartVisualPose =
-            AccessTools.MethodDelegate<Action<WorldMapTownheart, Vector3, Quaternion>>(
-                AccessTools.Method(typeof(WorldMapTownheart), "SetPositionAndRotation"));
-        private static readonly Action<WorldMap> UpdateMapTiles = AccessTools.MethodDelegate<Action<WorldMap>>(
-            AccessTools.Method(typeof(WorldMap), "LateUpdate"));
-        private static readonly Action<WorldMap> UpdateMapScouting = AccessTools.MethodDelegate<Action<WorldMap>>(
-            AccessTools.Method(typeof(WorldMap), "UpdateScouting"));
-        private static readonly Action<WorldMap> UpdateMapShader = AccessTools.MethodDelegate<Action<WorldMap>>(
-            AccessTools.Method(typeof(WorldMap), "UpdateGlobalShaderVariables"));
-        private static readonly Action<WorldMap> PruneMapTiles = AccessTools.MethodDelegate<Action<WorldMap>>(
-            AccessTools.Method(typeof(WorldMap), "PruneWorldtiles"));
+            (Action<WorldMapTownheart, Vector3, Quaternion>)AccessTools.Method(typeof(WorldMapTownheart), "SetPositionAndRotation")
+                .CreateDelegate(typeof(Action<WorldMapTownheart, Vector3, Quaternion>));
+        private static readonly Action<WorldMap> UpdateMapTiles =
+            (Action<WorldMap>)AccessTools.Method(typeof(WorldMap), "LateUpdate").CreateDelegate(typeof(Action<WorldMap>));
+        private static readonly Action<WorldMap> UpdateMapScouting =
+            (Action<WorldMap>)AccessTools.Method(typeof(WorldMap), "UpdateScouting").CreateDelegate(typeof(Action<WorldMap>));
+        private static readonly Action<WorldMap> UpdateMapShader =
+            (Action<WorldMap>)AccessTools.Method(typeof(WorldMap), "UpdateGlobalShaderVariables").CreateDelegate(typeof(Action<WorldMap>));
+        private static readonly Action<WorldMap> PruneMapTiles =
+            (Action<WorldMap>)AccessTools.Method(typeof(WorldMap), "PruneWorldtiles").CreateDelegate(typeof(Action<WorldMap>));
         private static readonly Func<WorldMap, LandmarkMapObstacle> ClosestObstacle =
-            AccessTools.MethodDelegate<Func<WorldMap, LandmarkMapObstacle>>(AccessTools.Method(typeof(WorldMap), "ReturnClosestObstacle"));
+            (Func<WorldMap, LandmarkMapObstacle>)AccessTools.Method(typeof(WorldMap), "ReturnClosestObstacle")
+                .CreateDelegate(typeof(Func<WorldMap, LandmarkMapObstacle>));
         private static readonly Action<WorldMapTownheartPhycis2D, float, float> StopVelocity =
-            AccessTools.MethodDelegate<Action<WorldMapTownheartPhycis2D, float, float>>(
-                AccessTools.Method(typeof(WorldMapTownheartPhycis2D), "SetVelocity"));
+            (Action<WorldMapTownheartPhycis2D, float, float>)AccessTools.Method(typeof(WorldMapTownheartPhycis2D), "SetVelocity")
+                .CreateDelegate(typeof(Action<WorldMapTownheartPhycis2D, float, float>));
 
         private bool showMinimap;
         private bool quickSailing;
@@ -153,7 +155,7 @@ namespace FlotsamTrainer
                 if (backgroundMap != null)
                 {
                     UpdateMapScouting(backgroundMap);
-                    float radius = WatchTower.Enabled ? backgroundMap.ReturnTileSpawningRange() : DefaultFogRange(backgroundMap);
+                    float radius = WatchTower.Enabled ? backgroundMap.ReturnTileSpawningRange() : (float)DefaultFogRange.GetValue(backgroundMap);
                     mapZoom = Mathf.Max(mapZoom, radius * 1.3f);
                 }
             }
@@ -192,7 +194,7 @@ namespace FlotsamTrainer
             var map = GameManager.WorldMapManager?.WorldMap;
             var world = GameManager.WorldManager?.World;
             bool ready = map != null && world != null && map.Townheart != null && map.Townheart.Initialized &&
-                !LoadingScreen.IsLoading && !MapTransition(map) && UIManager.State != UIState.Map;
+                !LoadingScreen.IsLoading && !(bool)MapTransition.GetValue(map) && UIManager.State != UIState.Map;
             if (!ready || !showMinimap || backgroundMap != null && backgroundMap != map)
                 ReleaseBackgroundMap();
             if (!ready || !showMinimap)
@@ -318,7 +320,7 @@ namespace FlotsamTrainer
             var controller = map.WorldCameraController;
             if (map.gameObject.activeSelf || controller == null || controller.Camera == null)
                 return false;
-            var body = MapPhysics(map);
+            var body = (WorldMapTownheartPhycis2D)MapPhysics.GetValue(map);
             if (body == null)
                 return false;
 
@@ -341,7 +343,7 @@ namespace FlotsamTrainer
             if (controller.Camera.TryGetComponent<UniversalAdditionalCameraData>(out var sourceCameraData))
             {
                 var minimapData = minimapCamera.GetUniversalAdditionalCameraData();
-                minimapData.SetRenderer(CameraRendererIndex(sourceCameraData));
+                minimapData.SetRenderer((int)CameraRendererIndex.GetValue(sourceCameraData));
                 minimapData.requiresDepthOption = sourceCameraData.requiresDepthOption;
                 minimapData.requiresColorOption = sourceCameraData.requiresColorOption;
                 minimapData.volumeLayerMask = sourceCameraData.volumeLayerMask;
@@ -439,11 +441,11 @@ namespace FlotsamTrainer
         private void ApplyCommittedMapPose()
         {
             // The map is XZ, while the game's Rigidbody2D moves in XY and rotates around Z.
-            var body = TownheartBody(physics);
+            var body = (Rigidbody2D)TownheartBody.GetValue(physics);
             var position = committedMapPosition.Vector2TopDown();
             body.position = position;
             body.rotation = -committedMapRotation.eulerAngles.y;
-            PreviousPhysicsPosition(physics) = position;
+            PreviousPhysicsPosition.SetValue(physics, position);
 
             var townheart = backgroundMap.Townheart;
             townheart.SetTargetPositionAndRotation(committedMapPosition, committedMapRotation);

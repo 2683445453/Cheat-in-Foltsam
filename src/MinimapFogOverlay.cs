@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,10 +9,10 @@ namespace FlotsamTrainer
     internal sealed class MinimapFogOverlay : MonoBehaviour
     {
         private const int Size = 256;
-        private static readonly AccessTools.FieldRef<WorldMapFogOfWar, Color[]> FogColors =
-            AccessTools.FieldRefAccess<WorldMapFogOfWar, Color[]>("_colors");
-        private static readonly AccessTools.FieldRef<WorldMapFogOfWar, Vector3[]> FogVertices =
-            AccessTools.FieldRefAccess<WorldMapFogOfWar, Vector3[]>("_vertices");
+        private static readonly FieldInfo FogColors =
+            AccessTools.Field(typeof(WorldMapFogOfWar), "_colors");
+        private static readonly FieldInfo FogVertices =
+            AccessTools.Field(typeof(WorldMapFogOfWar), "_vertices");
 
         private readonly Color32[] pixels = new Color32[Size * Size];
         private Texture2D texture;
@@ -51,8 +52,8 @@ namespace FlotsamTrainer
 
         private void Rasterize(Camera camera, WorldMapFogOfWar tile)
         {
-            var vertices = FogVertices(tile);
-            var colors = FogColors(tile);
+            var vertices = (Vector3[])FogVertices.GetValue(tile);
+            var colors = (Color[])FogColors.GetValue(tile);
             int columns = tile.GridSizeX;
             int rows = tile.GridSizeZ;
             if (vertices == null || colors == null || columns <= 0 || rows <= 0)

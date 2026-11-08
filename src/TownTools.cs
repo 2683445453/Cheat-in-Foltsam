@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using PajamaLlama.Fltsm;
@@ -219,10 +220,11 @@ namespace FlotsamTrainer
         [HarmonyPatch(typeof(Morale), "Update")]
         private static class MoraleUpdate
         {
-            private static readonly Action<Morale, float> SetMorale = AccessTools
-                .MethodDelegate<Action<Morale, float>>(AccessTools.PropertySetter(typeof(Morale), nameof(Morale.CurrentMoraleFloat)));
-            private static readonly AccessTools.FieldRef<Morale, Agent> AgentFor =
-                AccessTools.FieldRefAccess<Morale, Agent>("_agent");
+            private static readonly Action<Morale, float> SetMorale =
+                (Action<Morale, float>)AccessTools.PropertySetter(typeof(Morale), nameof(Morale.CurrentMoraleFloat))
+                    .CreateDelegate(typeof(Action<Morale, float>));
+            private static readonly FieldInfo AgentFor =
+                AccessTools.Field(typeof(Morale), "_agent");
 
             private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
@@ -241,7 +243,7 @@ namespace FlotsamTrainer
 
             private static int RoundMorale(float score, Morale morale)
             {
-                var agent = HappyWorkers ? AgentFor(morale) : null;
+                var agent = HappyWorkers ? (Agent)AgentFor.GetValue(morale) : null;
                 if (agent != null && IsPlayer(agent.Community))
                 {
                     score = morale.Properties.MoraleRange.Maximum;
@@ -291,14 +293,17 @@ namespace FlotsamTrainer
     internal sealed class CapacityOverrides
     {
         private const int ExpandedCapacity = 100000;
-        private static readonly Action<SubInventory, int> SetCapacity = AccessTools
-            .MethodDelegate<Action<SubInventory, int>>(AccessTools.PropertySetter(typeof(SubInventory), nameof(SubInventory.Capacity)));
-        private static readonly Action<SubInventory, int> SetAvailable = AccessTools
-            .MethodDelegate<Action<SubInventory, int>>(AccessTools.PropertySetter(typeof(SubInventory), nameof(SubInventory.AvailableCapacity)));
-        private static readonly Action<SubInventory, bool> SetHasCapacity = AccessTools
-            .MethodDelegate<Action<SubInventory, bool>>(AccessTools.PropertySetter(typeof(SubInventory), nameof(SubInventory.HasCapacity)));
-        private static readonly Action<Storage> NotifyStorage = AccessTools
-            .MethodDelegate<Action<Storage>>(AccessTools.Method(typeof(Storage), "OnStorageInventoryUpdated"));
+        private static readonly Action<SubInventory, int> SetCapacity =
+            (Action<SubInventory, int>)AccessTools.PropertySetter(typeof(SubInventory), nameof(SubInventory.Capacity))
+                .CreateDelegate(typeof(Action<SubInventory, int>));
+        private static readonly Action<SubInventory, int> SetAvailable =
+            (Action<SubInventory, int>)AccessTools.PropertySetter(typeof(SubInventory), nameof(SubInventory.AvailableCapacity))
+                .CreateDelegate(typeof(Action<SubInventory, int>));
+        private static readonly Action<SubInventory, bool> SetHasCapacity =
+            (Action<SubInventory, bool>)AccessTools.PropertySetter(typeof(SubInventory), nameof(SubInventory.HasCapacity))
+                .CreateDelegate(typeof(Action<SubInventory, bool>));
+        private static readonly Action<Storage> NotifyStorage =
+            (Action<Storage>)AccessTools.Method(typeof(Storage), "OnStorageInventoryUpdated").CreateDelegate(typeof(Action<Storage>));
 
         private readonly Dictionary<SubInventory, (int Capacity, Inventory Owner)> originals =
             new Dictionary<SubInventory, (int, Inventory)>();
