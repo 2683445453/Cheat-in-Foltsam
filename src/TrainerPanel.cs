@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
@@ -41,9 +42,12 @@ namespace FlotsamTrainer
                 return 0;
 
             var harmony = new Harmony(PatchId);
+            var runtime = $"Flotsam {Application.version}, Harmony {typeof(Harmony).Assembly.GetName().Version}";
             GameObject host = null;
             try
             {
+                RuntimeHelpers.RunClassConstructor(typeof(MinimapFogOverlay).TypeHandle);
+                RuntimeHelpers.RunClassConstructor(typeof(CapacityOverrides).TypeHandle);
                 harmony.PatchAll(typeof(TrainerPanel).Assembly);
                 host = new GameObject("Flotsam Trainer", typeof(RectTransform), typeof(Canvas),
                     typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -51,15 +55,15 @@ namespace FlotsamTrainer
                 var menu = host.AddComponent<TrainerPanel>();
                 menu.CreateMenu();
                 instance = menu;
-                Debug.Log("[Flotsam Trainer] Ready (F2).");
+                Debug.Log($"[Flotsam Trainer] Ready (F2). {runtime}");
                 return 0;
             }
             catch (Exception error)
             {
+                Debug.LogError($"[Flotsam Trainer] Install failed on {runtime}: {error}");
                 harmony.UnpatchAll(PatchId);
                 if (host != null)
                     Destroy(host);
-                Debug.LogError("[Flotsam Trainer] " + error);
                 return 24;
             }
         }

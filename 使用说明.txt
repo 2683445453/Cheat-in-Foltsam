@@ -23,5 +23,6 @@ Flotsam 修改器
 开关默认关闭，隐藏菜单后仍生效。点击「取消注入」并确认后关闭开关、移除面板和挂钩。需要时可再次运行启动器。
 取消注入后，已发生的存档变更会保留。Mono 托管程序集随游戏退出释放。
 更新前请完全退出游戏，将新包完整解压到新目录后启动。
+支持保留所需接口和补丁位置的 Windows x64 Mono 游戏版本。若启动失败，请查看游戏 Player.log 中的 Flotsam Trainer 日志。
 
 源码构建：PowerShell 7 中运行 .\build.ps1。需 .NET SDK 和 Visual Studio x64 C++ Build Tools。

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Reflection;
-using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,9 +9,9 @@ namespace FlotsamTrainer
     {
         private const int Size = 256;
         private static readonly FieldInfo FogColors =
-            AccessTools.Field(typeof(WorldMapFogOfWar), "_colors");
+            Entry.RequireField<Color[]>(typeof(WorldMapFogOfWar), "_colors");
         private static readonly FieldInfo FogVertices =
-            AccessTools.Field(typeof(WorldMapFogOfWar), "_vertices");
+            Entry.RequireField<Vector3[]>(typeof(WorldMapFogOfWar), "_vertices");
 
         private readonly Color32[] pixels = new Color32[Size * Size];
         private Texture2D texture;

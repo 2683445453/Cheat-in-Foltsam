@@ -1,27 +1,27 @@
 using System;
 using System.IO;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using HarmonyLib;
 using UnityEngine;
 
 namespace FlotsamTrainer
 {
     public static class Entry
     {
+        internal static FieldInfo RequireField<T>(Type owner, string name)
+        {
+            var field = AccessTools.Field(owner, name);
+            if (field == null || field.IsStatic || field.FieldType != typeof(T))
+                throw new MissingFieldException(owner.FullName, name);
+            return field;
+        }
+
         public static int Start(string directory)
         {
             try
             {
-                using (var file = File.OpenRead(Path.Combine(Application.dataPath, "Managed", "Assembly-CSharp.dll")))
-                using (var sha = SHA256.Create())
-                {
-                    var hash = BitConverter.ToString(sha.ComputeHash(file)).Replace("-", "");
-                    if (hash != "5B5C9F730ED71D5F66C0267064FC57667D2FF5644A018E9189B140CE025C1CD8")
-                        return 20;
-                }
-
                 Assembly.LoadFrom(Path.Combine(directory, "0Harmony.dll"));
                 var context = (SynchronizationContext)typeof(Awaitable)
                     .GetField("_synchronizationContext", BindingFlags.Static | BindingFlags.NonPublic)
@@ -42,7 +42,7 @@ namespace FlotsamTrainer
             }
             catch (Exception error)
             {
-                Debug.LogError("[Flotsam Trainer] " + error);
+                Debug.LogError($"[Flotsam Trainer] Startup failed ({typeof(Entry).Module.ModuleVersionId}): {error}");
                 return 23;
             }
         }

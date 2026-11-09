@@ -155,8 +155,8 @@ static std::wstring Inject()
     switch (result)
     {
     case 0: return L"";
-    case 20: return L"游戏版本不匹配。";
     case 10: case 21: case 22: return L"游戏尚未就绪。请进入主菜单后重试。";
+    case 24: return L"修改器功能挂载失败（24）。详情见游戏的 Player.log。";
     default: return L"游戏内初始化失败（" + std::to_wstring(result) + L"）。";
     }
 }

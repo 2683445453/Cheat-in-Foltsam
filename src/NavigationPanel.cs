@@ -14,17 +14,17 @@ namespace FlotsamTrainer
     public sealed partial class TrainerPanel
     {
         private static readonly FieldInfo MapTransition =
-            AccessTools.Field(typeof(WorldMap), "_isChangingState");
+            Entry.RequireField<bool>(typeof(WorldMap), "_isChangingState");
         private static readonly FieldInfo DefaultFogRange =
-            AccessTools.Field(typeof(WorldMap), "_defaultFOWRange");
+            Entry.RequireField<float>(typeof(WorldMap), "_defaultFOWRange");
         private static readonly FieldInfo CameraRendererIndex =
-            AccessTools.Field(typeof(UniversalAdditionalCameraData), "m_RendererIndex");
+            Entry.RequireField<int>(typeof(UniversalAdditionalCameraData), "m_RendererIndex");
         private static readonly FieldInfo MapPhysics =
-            AccessTools.Field(typeof(WorldMap), "_townheartPhysics");
+            Entry.RequireField<WorldMapTownheartPhycis2D>(typeof(WorldMap), "_townheartPhysics");
         private static readonly FieldInfo TownheartBody =
-            AccessTools.Field(typeof(WorldMapTownheartPhycis2D), "_rigidbody");
+            Entry.RequireField<Rigidbody2D>(typeof(WorldMapTownheartPhycis2D), "_rigidbody");
         private static readonly FieldInfo PreviousPhysicsPosition =
-            AccessTools.Field(typeof(WorldMapTownheartPhycis2D), "_position");
+            Entry.RequireField<Vector2>(typeof(WorldMapTownheartPhycis2D), "_position");
         private static readonly Action<WorldMapTownheart, Vector3, Quaternion> SetTownheartVisualPose =
             (Action<WorldMapTownheart, Vector3, Quaternion>)AccessTools.Method(typeof(WorldMapTownheart), "SetPositionAndRotation")
                 .CreateDelegate(typeof(Action<WorldMapTownheart, Vector3, Quaternion>));

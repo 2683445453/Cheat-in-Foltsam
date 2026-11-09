@@ -207,6 +207,60 @@ namespace FlotsamTrainer
             }
         }
 
+        [HarmonyPatch(typeof(PathfinderNavigator), nameof(PathfinderNavigator.FollowPathFixedDeltaTime))]
+        private static class WorkerPathStep
+        {
+            private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+            {
+                var code = new List<CodeInstruction>(instructions);
+                var normalize = AccessTools.PropertyGetter(typeof(Vector3), nameof(Vector3.normalized));
+                var speed = AccessTools.Method(typeof(Navigator), nameof(Navigator.ReturnSpeed), Type.EmptyTypes);
+                var navigator = AccessTools.PropertyGetter(typeof(PathfinderNavigator), nameof(PathfinderNavigator.Navigator));
+                var acceleration = Entry.RequireField<float>(typeof(PathfinderNavigator), "_accelerationMultiplier");
+                var multiply = AccessTools.Method(typeof(Vector3), "op_Multiply", new[] { typeof(Vector3), typeof(float) });
+                var clamp = AccessTools.Method(typeof(WorkerPathStep), nameof(ClampVelocity));
+                int insertion = -1;
+                CodeInstruction offset = null;
+                for (int i = 1; i + 7 < code.Count; i++)
+                {
+                    var loadOffset = code[i - 1].opcode;
+                    if ((loadOffset != OpCodes.Ldloca && loadOffset != OpCodes.Ldloca_S) ||
+                        !code[i].Calls(normalize) || code[i + 1].opcode != OpCodes.Ldarg_0 ||
+                        !code[i + 2].Calls(navigator) || !code[i + 3].Calls(speed) ||
+                        !code[i + 4].Calls(multiply) || code[i + 5].opcode != OpCodes.Ldarg_0 ||
+                        code[i + 6].opcode != OpCodes.Ldfld || !Equals(code[i + 6].operand, acceleration) ||
+                        !code[i + 7].Calls(multiply))
+                        continue;
+                    if (insertion >= 0)
+                        throw new InvalidOperationException("Multiple movement calculations in PathfinderNavigator.");
+                    insertion = i + 8;
+                    offset = code[i - 1];
+                }
+                if (insertion < 0)
+                    throw new InvalidOperationException("PathfinderNavigator movement calculation was not found.");
+
+                code.InsertRange(insertion, new[]
+                {
+                    new CodeInstruction(offset.opcode, offset.operand),
+                    new CodeInstruction(OpCodes.Ldarg_2),
+                    new CodeInstruction(OpCodes.Ldarg_0),
+                    new CodeInstruction(OpCodes.Call, clamp)
+                });
+                return code;
+            }
+
+            private static Vector3 ClampVelocity(Vector3 velocity, ref Vector3 waypointOffset, float deltaTime,
+                PathfinderNavigator path)
+            {
+                if (FastWorkers && WorkerMultiplier > 1f && deltaTime > 0f &&
+                    path.Agent != null && IsPlayer(path.Agent.Community) &&
+                    (velocity * deltaTime).sqrMagnitude > waypointOffset.sqrMagnitude)
+                    return waypointOffset / deltaTime;
+
+                return velocity;
+            }
+        }
+
         [HarmonyPatch(typeof(Morale), nameof(Morale.ReturnMoodScore))]
         private static class MoodScore
         {
@@ -224,7 +278,7 @@ namespace FlotsamTrainer
                 (Action<Morale, float>)AccessTools.PropertySetter(typeof(Morale), nameof(Morale.CurrentMoraleFloat))
                     .CreateDelegate(typeof(Action<Morale, float>));
             private static readonly FieldInfo AgentFor =
-                AccessTools.Field(typeof(Morale), "_agent");
+                Entry.RequireField<Agent>(typeof(Morale), "_agent");
 
             private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
