@@ -155,8 +155,10 @@ static std::wstring Inject()
     switch (result)
     {
     case 0: return L"";
+    case 20: return L"当前游戏缺少修改器所需的城镇接口（20）。请提供游戏版本和 Player.log。";
     case 10: case 21: case 22: return L"游戏尚未就绪。请进入主菜单后重试。";
     case 24: return L"修改器功能挂载失败（24）。详情见游戏的 Player.log。";
+    case 25: return L"Mono 字符串转换失败（25）。请完全退出游戏，将修改器解压到纯英文路径后重试。若仍报错，请提供游戏的 Player.log。";
     default: return L"游戏内初始化失败（" + std::to_wstring(result) + L"）。";
     }
 }

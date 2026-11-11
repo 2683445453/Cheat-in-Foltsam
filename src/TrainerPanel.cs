@@ -42,7 +42,7 @@ namespace FlotsamTrainer
                 return 0;
 
             var harmony = new Harmony(PatchId);
-            var runtime = $"Flotsam {Application.version}, Harmony {typeof(Harmony).Assembly.GetName().Version}";
+            var runtime = $"Flotsam {Application.version}, {typeof(Harmony).Assembly.FullName}";
             GameObject host = null;
             try
             {
@@ -61,9 +61,20 @@ namespace FlotsamTrainer
             catch (Exception error)
             {
                 Debug.LogError($"[Flotsam Trainer] Install failed on {runtime}: {error}");
-                harmony.UnpatchAll(PatchId);
+                try
+                {
+                    harmony.UnpatchAll(PatchId);
+                }
+                catch (Exception cleanupError)
+                {
+                    Debug.LogError($"[Flotsam Trainer] Rollback failed: {cleanupError}");
+                }
                 if (host != null)
                     Destroy(host);
+
+                for (var cause = error; cause != null; cause = cause.InnerException)
+                    if (cause.Message.IndexOf("String conversion error: Illegal byte sequence", StringComparison.OrdinalIgnoreCase) >= 0)
+                        return 25;
                 return 24;
             }
         }

@@ -1,4 +1,5 @@
 Flotsam 修改器
+已验证启动版本：Windows x64 Mono 1.0.1f10。
 
 进入游戏主菜单后运行 FlotsamTrainer.exe。F2 显示或隐藏菜单。
 「小地图」显示游戏地图图层与东南西北方位。拖动小地图标题栏移动，拖右下角调整大小，指针悬停时滚轮调整地图视野。
@@ -24,5 +25,6 @@ Flotsam 修改器
 取消注入后，已发生的存档变更会保留。Mono 托管程序集随游戏退出释放。
 更新前请完全退出游戏，将新包完整解压到新目录后启动。
 支持保留所需接口和补丁位置的 Windows x64 Mono 游戏版本。若启动失败，请查看游戏 Player.log 中的 Flotsam Trainer 日志。
+若提示 Mono 字符串转换失败（25），请完全退出游戏，再从纯英文路径运行修改器。若仍失败，请提供完整 Player.log 以及游戏、修改器的安装路径。
 
 源码构建：PowerShell 7 中运行 .\build.ps1。需 .NET SDK 和 Visual Studio x64 C++ Build Tools。

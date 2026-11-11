@@ -22,6 +22,13 @@ namespace FlotsamTrainer
         {
             try
             {
+                if (!SupportsPlayerCommunity(typeof(Community)))
+                {
+                    Debug.LogError($"[Flotsam Trainer] Unsupported game API: missing static Community.get_PlayerCommunity() returning Community. " +
+                        $"Assembly-CSharp module: {typeof(Community).Module.ModuleVersionId}");
+                    return 20;
+                }
+
                 Assembly.LoadFrom(Path.Combine(directory, "0Harmony.dll"));
                 var context = (SynchronizationContext)typeof(Awaitable)
                     .GetField("_synchronizationContext", BindingFlags.Static | BindingFlags.NonPublic)
@@ -45,6 +52,13 @@ namespace FlotsamTrainer
                 Debug.LogError($"[Flotsam Trainer] Startup failed ({typeof(Entry).Module.ModuleVersionId}): {error}");
                 return 23;
             }
+        }
+
+        private static bool SupportsPlayerCommunity(Type community)
+        {
+            var getter = community.GetMethod("get_PlayerCommunity", BindingFlags.Public | BindingFlags.Static,
+                null, Type.EmptyTypes, null);
+            return getter != null && !getter.IsGenericMethod && getter.ReturnType == community;
         }
     }
 }
