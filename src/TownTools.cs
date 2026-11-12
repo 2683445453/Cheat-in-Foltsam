@@ -16,8 +16,12 @@ namespace FlotsamTrainer
         internal static bool FastWorkers;
         internal static float WorkerMultiplier = 2f;
         internal static bool HappyWorkers;
-        internal static bool FastBoats;
-        internal static float BoatMultiplier = 2f;
+        internal static bool FastTownShip;
+        internal static float TownShipMultiplier = 2f;
+        internal static bool FastSalvageBoats;
+        internal static float SalvageBoatMultiplier = 2f;
+        internal static bool FastFishingBoats;
+        internal static float FishingBoatMultiplier = 2f;
         internal static bool FastCrafting;
         internal static float CraftMultiplier = 2f;
 
@@ -43,6 +47,19 @@ namespace FlotsamTrainer
         }
 
         internal static int SetStoredItems(ItemProperties item, int target)
+        {
+            AcquisitionTools.IgnoreGain++;
+            try
+            {
+                return SetStoredItemsCore(item, target);
+            }
+            finally
+            {
+                AcquisitionTools.IgnoreGain--;
+            }
+        }
+
+        private static int SetStoredItemsCore(ItemProperties item, int target)
         {
             int count = CountStoredItems(item);
             int originalCount = count;
@@ -195,40 +212,9 @@ namespace FlotsamTrainer
                     continue;
 
                 var source = flotsam.Inventory;
-                foreach (var item in source.ReturnAllItems().ToArray())
-                {
-                    if (item.Inventory != source || item.IsReserved || item.MoveToInventory != null || item.Project != null)
-                        continue;
-
-                    var payload = item.ReturnSubItem();
-                    var type = (payload.Properties.Tags & Item.Tags.Liquid) != 0
-                        ? SubInventoryType.Liquid : SubInventoryType.Storage;
-                    foreach (var storage in town.ReturnAvailableStorages(payload))
-                    {
-                        var inventory = storage.Inventory;
-                        if (!inventory.HasSubInventory(type))
-                            continue;
-
-                        var destination = inventory.ReturnInventory(type);
-                        if (destination.AvailableCapacity <= destination.IncomingItems.Count)
-                            continue;
-
-                        var taken = source.TakeItem(item);
-                        if (taken != null)
-                        {
-                            // Space was checked above; finish the transfer even if a salvage event changed capacity.
-                            inventory.RestoreItem(taken, destination);
-                            ItemEvent.Dispatch(GameEventType.ItemSalvaged, taken);
-                            collected++;
-                            if (collected >= limit)
-                            {
-                                town.ForceStorageLateUpdate();
-                                return collected;
-                            }
-                        }
-                        break;
-                    }
-                }
+                collected += AcquisitionTools.CollectItems(source, source.ReturnAllItems().ToArray(), limit - collected);
+                if (collected >= limit)
+                    break;
             }
             if (collected > 0)
                 town.ForceStorageLateUpdate();
@@ -253,9 +239,14 @@ namespace FlotsamTrainer
             {
                 if (FastWorkers && ____agent != null && IsPlayer(____agent.Community))
                     __result *= WorkerMultiplier;
-                if (FastBoats && ____agent == null && __instance.TryGetComponent<Boat>(out var boat) &&
+                if (____agent == null && __instance.TryGetComponent<Boat>(out var boat) &&
                     boat.Buildable != null && IsPlayer(boat.Buildable.Community))
-                    __result *= BoatMultiplier;
+                {
+                    if (FastSalvageBoats && boat.Type == BoatType.SalvagingBoat)
+                        __result *= SalvageBoatMultiplier;
+                    if (FastFishingBoats && boat.Type == BoatType.FishingBoat)
+                        __result *= FishingBoatMultiplier;
+                }
             }
         }
 
@@ -264,8 +255,8 @@ namespace FlotsamTrainer
         {
             private static void Postfix(Community ____playerCommunity, ref float __result)
             {
-                if (FastBoats && IsPlayer(____playerCommunity))
-                    __result *= BoatMultiplier;
+                if (FastTownShip && IsPlayer(____playerCommunity))
+                    __result *= TownShipMultiplier;
             }
         }
 

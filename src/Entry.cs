@@ -10,6 +10,7 @@ namespace FlotsamTrainer
 {
     public static class Entry
     {
+        internal static string SettingsPath { get; private set; }
         internal static FieldInfo RequireField<T>(Type owner, string name)
         {
             var field = AccessTools.Field(owner, name);
@@ -22,6 +23,7 @@ namespace FlotsamTrainer
         {
             try
             {
+                SettingsPath = Path.Combine(directory, "FlotsamTrainer.settings.json");
                 if (!SupportsPlayerCommunity(typeof(Community)))
                 {
                     Debug.LogError($"[Flotsam Trainer] Unsupported game API: missing static Community.get_PlayerCommunity() returning Community. " +

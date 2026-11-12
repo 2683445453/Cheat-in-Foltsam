@@ -24,3 +24,7 @@
 .env.*
 Thumbs.db
 Desktop.ini
+
+# Trainer preferences
+FlotsamTrainer.settings.json
+FlotsamTrainer.settings.json.*.tmp

@@ -146,6 +146,7 @@ namespace FlotsamTrainer
         private void ToggleMinimapFog()
         {
             showMinimapFog = !showMinimapFog;
+            SettingsChanged();
             minimapFogLabel.text = showMinimapFog ? "迷雾 开" : "迷雾 关";
             minimapFogOverlay.gameObject.SetActive(showMinimapFog);
             minimapFogOverlay.Invalidate();

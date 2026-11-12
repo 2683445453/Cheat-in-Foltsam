@@ -48,6 +48,8 @@ namespace FlotsamTrainer
             {
                 RuntimeHelpers.RunClassConstructor(typeof(MinimapFogOverlay).TypeHandle);
                 RuntimeHelpers.RunClassConstructor(typeof(CapacityOverrides).TypeHandle);
+                RuntimeHelpers.RunClassConstructor(typeof(AcquisitionTools).TypeHandle);
+                RuntimeHelpers.RunClassConstructor(typeof(DrifterTools).TypeHandle);
                 harmony.PatchAll(typeof(TrainerPanel).Assembly);
                 host = new GameObject("Flotsam Trainer", typeof(RectTransform), typeof(Canvas),
                     typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -81,6 +83,7 @@ namespace FlotsamTrainer
 
         private void CreateMenu()
         {
+            LoadSettings();
             var canvas = GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = short.MaxValue;
@@ -122,53 +125,11 @@ namespace FlotsamTrainer
             AddToggle(window, "小地图", 326, 63, value => showMinimap = value, 118);
             AddToggle(window, "快捷航行", 458, 63, value => quickSailing = value, 142);
             Label(window, "小地图：按住左键航行 · 右键拖动", new Rect(300, 92, 302, 16), 14, AccentColor);
-            Section(content, "人物与生存", 108);
-            AddToggle(content, "人物不死", 21, 139, value => Features.Immortal = value);
-            AddToggle(content, "无需吃喝", 319, 139, SetNoMeals);
-            AddToggle(content, "工人不受污染", 21, 172, TownTools.SetPollutionProof);
-            AddToggle(content, "工人永远开心", 319, 172, value => TownTools.HappyWorkers = value);
-
-            Section(content, "城镇与物流", 202);
-            AddToggle(content, "无需资源建造", 21, 231, SetFreeBuild);
-            AddToggle(content, "无需材料制作", 319, 231, value => TownTools.FreeCrafting = value);
-            AddToggle(content, "无限负重", 21, 262, Features.SetUnlimitedWeight);
-            AddToggle(content, "无限电力", 319, 262, value => Features.UnlimitedPower = value);
-            AddToggle(content, "仓库无限容量", 21, 293, SetWarehouses);
-            AddToggle(content, "工人及船只无限载量", 319, 293, SetCargo);
-            AddToggle(content, "自动打捞附近物资", 21, 324, value =>
-            {
-                autoSalvage = value;
-                nextSalvage = 0f;
-            });
-            AddButton(content, "一键治疗", new Rect(319, 324, 283, 29), ButtonColor, Features.TreatAllDrifters);
-
-            Section(content, "倍率与点数", 360);
-            AddMultiplier(content, "角色经验", 390, value => Features.FastLevel = value,
-                () => Features.ExperienceMultiplier, value => Features.ExperienceMultiplier = value);
-            AddMultiplier(content, "研究速度", 421, value => Features.FastResearch = value,
-                () => Features.ResearchMultiplier, value => Features.ResearchMultiplier = value);
-            AddMultiplier(content, "制作速度", 452, value => TownTools.FastCrafting = value,
-                () => TownTools.CraftMultiplier, value => TownTools.CraftMultiplier = value, maximum: 100f);
-            AddMultiplier(content, "工人移速", 483, value =>
-            {
-                TownTools.FastWorkers = value;
-                TownTools.RefreshWorkerSpeed();
-            }, () => TownTools.WorkerMultiplier, value =>
-            {
-                TownTools.WorkerMultiplier = value;
-                if (TownTools.FastWorkers)
-                    TownTools.RefreshWorkerSpeed();
-            }, maximum: 10f);
-            AddMultiplier(content, "船只移速", 514, value => TownTools.FastBoats = value,
-                () => TownTools.BoatMultiplier, value => TownTools.BoatMultiplier = value, maximum: 10f);
-            Label(content, "科研点数", new Rect(21, 545, 103, 29), 18, Ink);
-            researchPoints = AddInput(content, new Rect(123, 545, 95, 29), InputField.ContentType.IntegerNumber, 10);
-            AddButton(content, "设置", new Rect(224, 545, 64, 29), ButtonColor, ApplyResearch);
-            AddButton(content, "全员属性拉满", new Rect(319, 545, 283, 29), ButtonColor, Features.MaxAttributes);
+            CreateFeatureControls(content);
 
             CreateItemPage(window, content);
             CreateDrifterPage(window);
-            status = Label(content, "", new Rect(18, 587, 425, 28), 15, AccentColor);
+            status = Label(content, "开关与倍率自动保存", new Rect(18, 587, 425, 28), 15, AccentColor);
             AddButton(window, "取消注入", new Rect(459, 587, 116, 28), WarningColor,
                 () => detachConfirmation.SetActive(true));
             var corner = AddImage(window, new Rect(582, 589, 27, 27), new Color(0, 0, 0, 0));
@@ -176,6 +137,7 @@ namespace FlotsamTrainer
             AddGrip(corner, true);
             CreateDetachConfirmation();
             CreateMinimap();
+            RestoreSettings();
             panel.SetActive(false);
         }
 
@@ -199,12 +161,15 @@ namespace FlotsamTrainer
         {
             try
             {
+                SaveSettings();
+                suppressSettingsSave = true;
                 DisableAll();
                 ReleaseBackgroundMap();
                 new Harmony(PatchId).UnpatchAll(PatchId);
             }
             catch (Exception error)
             {
+                suppressSettingsSave = false;
                 Debug.LogError("[Flotsam Trainer] Detach failed: " + error);
                 return;
             }
@@ -217,6 +182,7 @@ namespace FlotsamTrainer
 
         private void Update()
         {
+            UpdateSettings();
             KeepWindowOnScreen();
             UpdateNavigation();
             if (Input.GetKeyDown(KeyCode.F2))
@@ -239,6 +205,7 @@ namespace FlotsamTrainer
 
             var town = Community.PlayerCommunity;
             UpdateDrifterPage();
+            UpdateLandmarkSalvage();
             if (autoSalvage && town != null && !LoadingScreen.IsLoading && !GameManager.Gamepaused &&
                 Time.unscaledTime >= nextSalvage)
             {
@@ -256,6 +223,7 @@ namespace FlotsamTrainer
 
         private void OnDestroy()
         {
+            SaveSettings();
             ReleaseBackgroundMap();
             if (minimapTexture != null)
             {
@@ -414,23 +382,30 @@ namespace FlotsamTrainer
             toggle.targetGraphic = background;
             toggle.graphic = mark;
             toggle.isOn = false;
-            toggle.onValueChanged.AddListener(value => change(value));
+            toggle.onValueChanged.AddListener(value =>
+            {
+                change(value);
+                SettingsChanged();
+            });
             toggles.Add(toggle);
+            savedToggles.Add(caption, toggle);
         }
 
         private void AddMultiplier(RectTransform parent, string caption, int y, Action<bool> change,
-            Func<float> read, Action<float> write, float maximum = 1000f)
+            Func<float> read, Action<float> write, float maximum = 1000f, float minimum = 0.1f)
         {
             AddToggle(parent, caption, 18, y, change);
             var input = AddInput(parent, new Rect(319, y, 159, 29), InputField.ContentType.DecimalNumber, 8);
             void Apply(float value)
             {
-                value = (float)Math.Round(Mathf.Clamp(value, 0.1f, maximum), 3);
+                value = (float)Math.Round(Mathf.Clamp(value, minimum, maximum), 3);
                 write(value);
                 input.SetTextWithoutNotify(value.ToString("0.000", CultureInfo.InvariantCulture));
+                SettingsChanged();
             }
 
-            Apply(read());
+            savedParameters.Add(caption, read);
+            Apply(savedSettings.TryGetParameter(caption, out float savedValue) ? savedValue : read());
             input.onEndEdit.AddListener(text =>
             {
                 if (float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) &&
