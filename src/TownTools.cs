@@ -18,6 +18,8 @@ namespace FlotsamTrainer
         internal static bool HappyWorkers;
         internal static bool FastBoats;
         internal static float BoatMultiplier = 2f;
+        internal static bool FastCrafting;
+        internal static float CraftMultiplier = 2f;
 
         private static bool IsPlayer(Community community) =>
             community != null && community == Community.PlayerCommunity;
@@ -116,6 +118,66 @@ namespace FlotsamTrainer
                 if (navigator != null && navigator.Terrain == Navigator.TerrainType.UnityNavMesh &&
                     navigator.TryGetComponent<UnityNavMeshNavigator>(out var path) && path.UnityNavMeshAgent != null)
                     path.UnityNavMeshAgent.speed = navigator.ReturnSpeed(Navigator.TerrainType.UnityNavMesh);
+                RefreshWorkerAnimation(agent);
+            }
+        }
+
+        private static void RefreshWorkerAnimation(Agent agent)
+        {
+            if (agent == null || agent.Attributes == null || agent.DrifterRig == null ||
+                agent.DrifterRig.MeshAnimator == null)
+                return;
+            var attribute = agent.Attributes.ReturnAttribute(DrifterAttributes.AttributeType.Athletics);
+            if (attribute != null && !string.IsNullOrEmpty(attribute.AnimationParameter))
+                agent.DrifterRig.MeshAnimator.SetFloat(attribute.AnimationParameter,
+                    agent.Attributes.ReturnAttributeModifier(attribute) *
+                    (FastWorkers && IsPlayer(agent.Community) ? WorkerMultiplier : 1f));
+        }
+
+        [HarmonyPatch(typeof(Agent), "OnModifierUpdated")]
+        private static class WorkerAnimation
+        {
+            private static void Postfix(Agent __instance) => RefreshWorkerAnimation(__instance);
+        }
+
+        [HarmonyPatch(typeof(Producer), nameof(Producer.Produce))]
+        private static class CraftSpeed
+        {
+            private static void Prefix(Producer __instance, ref float agentModifier)
+            {
+                if (FastCrafting && __instance.Buildable != null && IsPlayer(__instance.Buildable.Community))
+                    agentModifier *= CraftMultiplier;
+            }
+        }
+
+        [HarmonyPatch(typeof(PathfinderNavigator), nameof(PathfinderNavigator.FollowPath))]
+        private static class WorkerPathSubsteps
+        {
+            private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+            {
+                var step = Entry.RequireField<float>(typeof(PathfinderNavigator), "_fixedDeltaTime");
+                var scale = AccessTools.Method(typeof(WorkerPathSubsteps), nameof(SafeStep));
+                int count = 0;
+                foreach (var instruction in instructions)
+                {
+                    yield return instruction;
+                    if (instruction.opcode != OpCodes.Ldfld || !Equals(instruction.operand, step))
+                        continue;
+                    count++;
+                    yield return new CodeInstruction(OpCodes.Ldarg_0);
+                    yield return new CodeInstruction(OpCodes.Call, scale);
+                }
+                if (count != 3)
+                    throw new InvalidOperationException("Expected three path integration step reads in PathfinderNavigator.FollowPath.");
+            }
+
+            private static float SafeStep(float original, PathfinderNavigator path)
+            {
+                if (!FastWorkers || WorkerMultiplier <= 1f || path.Agent == null || !IsPlayer(path.Agent.Community))
+                    return original;
+                float speed = path.Navigator.ReturnSpeed();
+                return Mathf.Max(0.001f, Mathf.Min(original / WorkerMultiplier,
+                    path.Radius / Mathf.Max(0.01f, speed) * 0.4f));
             }
         }
 

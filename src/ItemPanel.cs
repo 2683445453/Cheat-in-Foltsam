@@ -82,18 +82,22 @@ namespace FlotsamTrainer
         private void ShowFeatures()
         {
             itemPage.SetActive(false);
+            drifterPage.SetActive(false);
             featurePage.SetActive(true);
             featureTab.color = TitleColor;
             itemTab.color = ButtonColor;
+            drifterTab.color = ButtonColor;
             UpdateResearchInput();
         }
 
         private void ShowItems()
         {
             featurePage.SetActive(false);
+            drifterPage.SetActive(false);
             itemPage.SetActive(true);
             featureTab.color = ButtonColor;
             itemTab.color = TitleColor;
+            drifterTab.color = ButtonColor;
             RefreshItemPage();
         }
         private void RefreshItemPage()

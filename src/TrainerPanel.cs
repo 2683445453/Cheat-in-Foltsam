@@ -112,8 +112,10 @@ namespace FlotsamTrainer
             var content = new GameObject("Features", typeof(RectTransform)).GetComponent<RectTransform>();
             Position(content, window, new Rect(0, 0, 620, 510));
             var ui = GameManager.Settings?.UISettings;
-            var featuresTab = AddButton(window, "功能", new Rect(18, 61, 115, 33), TitleColor, ShowFeatures);
-            var itemsTab = AddButton(window, "物品库存", new Rect(141, 61, 146, 33), ButtonColor, ShowItems,
+            var featuresTab = AddButton(window, "功能", new Rect(18, 61, 79, 33), TitleColor, ShowFeatures);
+            var driftersTab = AddButton(window, "漂流者", new Rect(104, 61, 100, 33), ButtonColor, ShowDrifters);
+            drifterTab = driftersTab.targetGraphic;
+            var itemsTab = AddButton(window, "物品", new Rect(211, 61, 94, 33), ButtonColor, ShowItems,
                 ui?.BuildableFinishedNotification?.Icon);
             featureTab = featuresTab.targetGraphic;
             itemTab = itemsTab.targetGraphic;
@@ -126,26 +128,28 @@ namespace FlotsamTrainer
             AddToggle(content, "工人不受污染", 21, 172, TownTools.SetPollutionProof);
             AddToggle(content, "工人永远开心", 319, 172, value => TownTools.HappyWorkers = value);
 
-            Section(content, "城镇与物流", 210);
-            AddToggle(content, "无需资源建造", 21, 241, SetFreeBuild);
-            AddToggle(content, "无需材料制作", 319, 241, value => TownTools.FreeCrafting = value);
-            AddToggle(content, "无限负重", 21, 274, Features.SetUnlimitedWeight);
-            AddToggle(content, "无限电力", 319, 274, value => Features.UnlimitedPower = value);
-            AddToggle(content, "仓库无限容量", 21, 307, SetWarehouses);
-            AddToggle(content, "工人及船只无限载量", 319, 307, SetCargo);
-            AddToggle(content, "自动打捞附近物资", 21, 340, value =>
+            Section(content, "城镇与物流", 202);
+            AddToggle(content, "无需资源建造", 21, 231, SetFreeBuild);
+            AddToggle(content, "无需材料制作", 319, 231, value => TownTools.FreeCrafting = value);
+            AddToggle(content, "无限负重", 21, 262, Features.SetUnlimitedWeight);
+            AddToggle(content, "无限电力", 319, 262, value => Features.UnlimitedPower = value);
+            AddToggle(content, "仓库无限容量", 21, 293, SetWarehouses);
+            AddToggle(content, "工人及船只无限载量", 319, 293, SetCargo);
+            AddToggle(content, "自动打捞附近物资", 21, 324, value =>
             {
                 autoSalvage = value;
                 nextSalvage = 0f;
             });
-            AddButton(content, "一键治疗", new Rect(319, 340, 283, 29), ButtonColor, Features.TreatAllDrifters);
+            AddButton(content, "一键治疗", new Rect(319, 324, 283, 29), ButtonColor, Features.TreatAllDrifters);
 
-            Section(content, "倍率与点数", 379);
-            AddMultiplier(content, "角色经验", 409, value => Features.FastLevel = value,
+            Section(content, "倍率与点数", 360);
+            AddMultiplier(content, "角色经验", 390, value => Features.FastLevel = value,
                 () => Features.ExperienceMultiplier, value => Features.ExperienceMultiplier = value);
-            AddMultiplier(content, "研究速度", 443, value => Features.FastResearch = value,
+            AddMultiplier(content, "研究速度", 421, value => Features.FastResearch = value,
                 () => Features.ResearchMultiplier, value => Features.ResearchMultiplier = value);
-            AddMultiplier(content, "工人移速", 477, value =>
+            AddMultiplier(content, "制作速度", 452, value => TownTools.FastCrafting = value,
+                () => TownTools.CraftMultiplier, value => TownTools.CraftMultiplier = value, maximum: 100f);
+            AddMultiplier(content, "工人移速", 483, value =>
             {
                 TownTools.FastWorkers = value;
                 TownTools.RefreshWorkerSpeed();
@@ -155,7 +159,7 @@ namespace FlotsamTrainer
                 if (TownTools.FastWorkers)
                     TownTools.RefreshWorkerSpeed();
             }, maximum: 10f);
-            AddMultiplier(content, "船只移速", 511, value => TownTools.FastBoats = value,
+            AddMultiplier(content, "船只移速", 514, value => TownTools.FastBoats = value,
                 () => TownTools.BoatMultiplier, value => TownTools.BoatMultiplier = value, maximum: 10f);
             Label(content, "科研点数", new Rect(21, 545, 103, 29), 18, Ink);
             researchPoints = AddInput(content, new Rect(123, 545, 95, 29), InputField.ContentType.IntegerNumber, 10);
@@ -163,6 +167,7 @@ namespace FlotsamTrainer
             AddButton(content, "全员属性拉满", new Rect(319, 545, 283, 29), ButtonColor, Features.MaxAttributes);
 
             CreateItemPage(window, content);
+            CreateDrifterPage(window);
             status = Label(content, "", new Rect(18, 587, 425, 28), 15, AccentColor);
             AddButton(window, "取消注入", new Rect(459, 587, 116, 28), WarningColor,
                 () => detachConfirmation.SetActive(true));
@@ -223,6 +228,8 @@ namespace FlotsamTrainer
                     panel.SetActive(true);
                     if (itemPage.activeSelf)
                         RefreshItemPage();
+                    else if (drifterPage.activeSelf)
+                        RefreshDrifterPage();
                     else
                         UpdateResearchInput();
                 }
@@ -231,6 +238,7 @@ namespace FlotsamTrainer
                 RefreshCapacities();
 
             var town = Community.PlayerCommunity;
+            UpdateDrifterPage();
             if (autoSalvage && town != null && !LoadingScreen.IsLoading && !GameManager.Gamepaused &&
                 Time.unscaledTime >= nextSalvage)
             {
